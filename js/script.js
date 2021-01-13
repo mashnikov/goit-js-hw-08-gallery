@@ -1,14 +1,6 @@
 import galleryArr from './gallery-items.js';
 // =======================================================================================
 // 1) создание разметки галереи изображений:
-//    - создаем функцию, которая получает объект из массива gallery,
-//      с помощью createElements создает разметку и возращает ее
-//    - проходимся циклом циклом по массиву, создаем такую разметку
-//      для каждого элемента(объекта) массива и вешаем ее внутрь списка ul('js-gallery')
-//    - галерея состоит из li,
-//      на которой есть ссылка, в которой на href хранится ссылка на большое изображение,
-//      у img в src стоит ссылка на маленькое изображение,
-//      а в data-source - на большое изображение
 
 const refs = {
     gallery: document.querySelector('ul.js-gallery'),
@@ -17,6 +9,8 @@ const refs = {
     lightboxOverlay: document.querySelector('div.lightbox__overlay'),
     lightboxImage: document.querySelector('img.lightbox__image'),
 };
+
+let activeIndex;
 
 // ===========================
 // функция получает объект из массива, создает элементы разметки галереи,
@@ -37,7 +31,7 @@ function createGallery(obj, i) {
     galleryImage.dataset.source = obj.original;
     galleryImage.dataset.index = i;
     galleryItem.appendChild(galleryLink).appendChild(galleryImage);
-    // console.log(galleryItem);
+    //console.log(galleryItem);
     return galleryItem;
 }
 
@@ -59,9 +53,7 @@ refs.gallery.append(...galleryItemsCollection);
 //    - повесить прослушивание клика на ul
 refs.gallery.addEventListener('click', onGalleryClick);
 
-//    - при клике в картинку - получиьт url большого изображения
-//      (вывести в console.log  значение атрибута data-source)
-//      использовать (получить) dataset, event.target, source
+//    - при клике в картинку - получить url большого изображения
 
 function onGalleryClick(event) {
     event.preventDefault();
@@ -74,7 +66,6 @@ function onGalleryClick(event) {
     const tagImg = event.target;
     const largeImgURL = tagImg.dataset.source;
     const largeImgALT = tagImg.getAttribute('alt');
-
     // console.log(largeImgURL);
     // console.log(largeImgALT);
 
@@ -83,6 +74,9 @@ function onGalleryClick(event) {
     refs.lightboxImage.setAttribute('alt', largeImgALT);
 
     setLargeImgURL(largeImgURL);
+
+    activeIndex = getLargeImgActiveIndex();
+    //console.log('activeIndex =', activeIndex);
 }
 
 function setLargeImgURL(url) {
@@ -93,22 +87,30 @@ function removeLargeImgURL() {
     refs.lightboxImage.src = '';
 }
 
+function getLargeImgActiveIndex() {
+    const largeImgActiveIndex = Number(event.target.dataset.index);
+    //console.log('largeImgActiveIndex', largeImgActiveIndex);
+    return largeImgActiveIndex;
+}
+
 // =======================================================================================
 // 3) Открытие модального окна по клику на элементе галереи.
 //    Закрытие модального окна по клику на кнопку.
 //    Закрытие модального окна по клику на область оверлея div.lightbox__overlay.
 //    Закрытие модального окна по нажатию клавиши ESC.
-//    создать функции openModal, closeModal
 
 // создание функции открытия модального окна
 function onOpenModal() {
     window.addEventListener('keydown', onEscapePress);
+    window.addEventListener('keydown', onKeyboardPress);
     refs.lightbox.classList.add('is-open');
 }
 
 // создание функции закрытия модального окна
 function onCloseModal() {
     window.removeEventListener('keydown', onEscapePress);
+    window.removeEventListener('keydown', onKeyboardPress);
+
     refs.lightbox.classList.remove('is-open');
     removeLargeImgURL();
     refs.lightboxImage.setAttribute('alt', '');
@@ -135,11 +137,78 @@ refs.closeBtn.addEventListener('click', onCloseModal);
 // закурытие модального окна при клике на серую область оверлея:
 refs.lightboxOverlay.addEventListener('click', onLightboxOverlayClick);
 
-// 4) пролистывание галереи кнопками влево/вправо
-//    - пока открыто модальное окно необходимо зарегистрировать
-//      прослушивание кнопок "влево" и "вправо" на клавиатуре (keypress или keydown)
-//    - при клике на картинку необходимо получить индекс картинки, с которой начинается пролистывание
-//      создаем переменную activeIndex, в которую во время клика записываем активный (текущий) индекс из data-index
-//      когда листаем вправо - увеличиваем индекс на +1, влево - уменьшаем на -1 =Ю идем в массив, берем картинку с таким индексом и подставляем в большой Image
-//      img.src = arr[index + 1].original
-//      если индекс равен нулю или концу масива -> return (ничего не делаем)
+// =======================================================================================
+// 4) // создание функции перелистывания галереи больших изображений при нажатии клавиш "влево" / "вправо"
+function onKeyboardPress(event) {
+    if (event.code === 'ArrowRight') {
+        if (activeIndex >= galleryArr.length - 1) {
+            return;
+        } else {
+            // console.log('нажали клавишу "вправо"');
+            activeIndex += 1;
+            refs.lightboxImage.src = galleryArr[activeIndex].original;
+            refs.lightboxImage.setAttribute(
+                'alt',
+                galleryArr[activeIndex].description,
+            );
+            //console.log(activeIndex);
+            // console.log(galleryArr[activeIndex].description);
+        }
+    }
+
+    if (event.code === 'ArrowLeft') {
+        if (activeIndex <= 0) {
+            return;
+        } else {
+            // console.log('нажали клавишу "влево"');
+            activeIndex -= 1;
+            refs.lightboxImage.src = galleryArr[activeIndex].original;
+            refs.lightboxImage.setAttribute(
+                'alt',
+                galleryArr[activeIndex].description,
+            );
+            //console.log(activeIndex);
+            // console.log(galleryArr[activeIndex].description);
+        }
+    }
+}
+
+//  вариант, когда галерея листается зациклено, дойдя до последней картинки открывает первую, и наоборот):
+
+// function onKeyboardPress(event) {
+//     if (event.code === 'ArrowRight') {
+//         if (activeIndex >= galleryArr.length - 1) {
+//             activeIndex = 0;
+//             refs.lightboxImage.src = galleryArr[activeIndex].original;
+//             refs.lightboxImage.setAttribute(
+//                 'alt',
+//                 galleryArr[activeIndex].description,
+//             );
+//         } else {
+//             activeIndex += 1;
+//             refs.lightboxImage.src = galleryArr[activeIndex].original;
+//             refs.lightboxImage.setAttribute(
+//                 'alt',
+//                 galleryArr[activeIndex].description,
+//             );
+//         }
+//     }
+
+//     if (event.code === 'ArrowLeft') {
+//         if (activeIndex <= 0) {
+//             activeIndex = galleryArr.length - 1;
+//             refs.lightboxImage.src = galleryArr[activeIndex].original;
+//             refs.lightboxImage.setAttribute(
+//                 'alt',
+//                 galleryArr[activeIndex].description,
+//             );
+//         } else {
+//             activeIndex -= 1;
+//             refs.lightboxImage.src = galleryArr[activeIndex].original;
+//             refs.lightboxImage.setAttribute(
+//                 'alt',
+//                 galleryArr[activeIndex].description,
+//             );
+//         }
+//     }
+// }
